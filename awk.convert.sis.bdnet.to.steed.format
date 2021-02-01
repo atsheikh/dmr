@@ -1,0 +1,241 @@
+# Tom Marchok
+# October 5, 1993
+# 
+# awk.convert.bdnet.to.steed.format
+# 
+# This file converts sis *.bdnet format to steed *.sim format.
+# 
+# Note that the *.bdnet format file on which this script operates must have
+# the following information appended to the beginning of it:
+# 		num_PI 1
+# 		num_PO 2
+#		p <<<list of p nodes>>>
+#		n <<<list of n nodes>>>
+#		ZERO nodename
+#		ONE nodename
+#
+# EXPLANATION OF REQUIRED DATA:
+# 		num_PI 1
+# 		num_PO 2
+# This information tells the number of Primary Inputs/Primary Outputs,
+# and is used in printing out the STEED "i","o","p", and "n" lines.
+# (This is because jedi includes all PI and DFF_p in the "INPUT" listing
+#  and all PO and DFF_n in the "OUTPUT" listing.)
+# 
+#		p <<<list of p nodes>>>
+#		n <<<list of n nodes>>>
+# This information lists the names of D (n) and Q (p) nodes of the DFFs.
+# Note that in *.bdnet files produced by sis, these names are not
+# detectable in a single pass, and are thus passed to this awk.script
+# in more congealed form.
+#
+# Note that the *.bdnet format file on which this script operates may have
+# some of the following information appended to the beginning of it:
+#		ZERO nodename
+#		ONE nodename
+# This says that those nodenames are hardwired to logic 0/1.  Note that
+# this script uses that information in order to not include in the
+# resultant netlist DFFs in which the next state fed by node which is 
+# hardwired to 0 or 1.  Note that it has been determined that when JEDI
+# does not require all of the DFFs which it has been told to use to encode
+# the States, it will create DFFs which have no fanout and into which a node
+# which is hardwired to logic 0/1 fans in to.
+# 
+# DO NOT PRINT PRIMARY OUTPUT BAME IF TIED TO ONE/ZERO (ex. scf.R.7.j*d)
+# 
+# 
+
+BEGIN{
+  printf("# leading comment required in STEED.sim format.\n")
+}
+{
+  if ($1 == "num_PI"){
+     num_PI = $2
+  }
+  else if ($1 == "num_PO"){
+     num_PO = $2
+  }
+  else if ($1 == "p"){
+     p_line = $0
+  }
+  else if ($1 == "n"){
+     n_line = $0
+  }
+  else if (($1 == "ZERO") || ($1 == "ONE")){
+     num_ZERO_ONE_nodes++
+     nodes_tied_ZERO_ONE[num_ZERO_ONE_nodes] = $2
+  }
+  else if ($1 == "MODEL"){
+    printf("name %s\n",$2)
+  }
+  else if ($1 == "INPUT"){
+    processing_INPUT = 1
+  }
+  else if (processing_INPUT == 1){
+     if ($0 == ""){
+	## listing of INPUT nodes ends when blank line encountered.
+	processing_INPUT = 0
+	## print out PI listing in INPUT[1..num_PI]
+	## After OUTPUT processed, will print listing of DFF_p nodes which
+	## are contained in INPUT[num_PI+1...num_INPUT]
+	printf("i ")
+	for (i=1; i <= num_PI; i++){
+	  printf("%s ",INPUT[i])
+	}
+	printf("\n")
+     }
+     else{
+	## save PI/DFF_p names in INPUT[]
+	num_INPUT++
+	INPUT[num_INPUT] = $3
+     }
+  }
+  else if ($1 == "OUTPUT"){
+    processing_OUTPUT = 1
+  }
+  else if (processing_OUTPUT == 1){
+     if ($0 == ""){
+	## listing of OUTPUT nodes ends when blank line encountered.
+	processing_OUTPUT = 0
+	## print out PO listing in OUTPUT[num_OUTPUT-num_PO+1...num_OUTPUT]
+	## After OUTPUT processed, will print listing of DFF_p nodes which
+	## are contained in INPUT[num_PI+1...num_INPUT], as well as listing
+	## of DFF_n nodes which are contained in OUTPUT[1..num_OUTPUT-num_PO]
+	printf("o ")
+	for (i=num_OUTPUT-num_PO+1 ; i <= num_OUTPUT; i++){
+	  ## printf("%s ",OUTPUT[i])
+	  ## DO NOT PRINT PRIMARY OUTPUT IF TIED TO ONE/ZERO (ex. scf.R.7.j*d)
+	  found_0_1 = 0
+	  for (j=1; j <= num_ZERO_ONE_nodes; j++){
+		if (OUTPUT[i] == nodes_tied_ZERO_ONE[j]){
+		   found_0_1 = 1
+		}
+	  }
+	  if (found_0_1 == 0){
+	    printf("%s ",OUTPUT[i])
+	  }
+	}
+	printf("\n")
+
+	printf("%s\n",p_line)
+	printf("%s\n",n_line)
+     }
+     else{
+	## save PO/DFF_n names in OUTPUT[]
+	num_OUTPUT++
+	OUTPUT[num_OUTPUT] = $3
+     }
+  }
+  else if (($1 == "INSTANCE") && (($2 == "inv1x") || ($2 == "inv2x") || ($2 == "inv4x"))){
+    processing_INV = 1
+  }
+  else if (processing_INV == 1){
+    if ($1 == "a") input1 = $3
+    else if ($1 == "O"){
+	printf("g%s not %s ; %s\n",$3,input1,$3)
+	processing_INV = 0
+    }
+  }
+  #==================================================================
+  else if (($1 == "INSTANCE") && ($2 == "nand2")){
+    processing_NAND2 = 1
+  }
+  else if (processing_NAND2 == 1){
+    if ($1 == "a") input1 = $3
+    else if ($1 == "b") input2 = $3
+    else if ($1 == "O"){
+	printf("g%s nand %s %s ; %s\n",$3,input1,input2,$3)
+	processing_NAND2 = 0
+    }
+  }
+  else if (($1 == "INSTANCE") && ($2 == "nand3")){
+    processing_NAND3 = 1
+  }
+  else if (processing_NAND3 == 1){
+    if ($1 == "a") input1 = $3
+    else if ($1 == "b") input2 = $3
+    else if ($1 == "c") input3 = $3
+    else if ($1 == "O"){
+	printf("g%s nand %s %s %s ; %s\n",$3,input1,input2,input3,$3)
+	processing_NAND3 = 0
+    }
+  }
+  else if (($1 == "INSTANCE") && ($2 == "nand4")){
+    processing_NAND4 = 1
+  }
+  else if (processing_NAND4 == 1){
+    if ($1 == "a") input1 = $3
+    else if ($1 == "b") input2 = $3
+    else if ($1 == "c") input3 = $3
+    else if ($1 == "d") input4 = $3
+    else if ($1 == "O"){
+	printf("g%s nand %s %s %s %s ; %s\n",$3,input1,input2,input3,input4,$3)
+	processing_NAND4 = 0
+    }
+  }
+  #==================================================================
+  else if (($1 == "INSTANCE") && ($2 == "nor2")){
+    processing_NOR2 = 1
+  }
+  else if (processing_NOR2 == 1){
+    if ($1 == "a") input1 = $3
+    else if ($1 == "b") input2 = $3
+    else if ($1 == "O"){
+	printf("g%s nor %s %s ; %s\n",$3,input1,input2,$3)
+	processing_NOR2 = 0
+    }
+  }
+  else if (($1 == "INSTANCE") && ($2 == "nor3")){
+    processing_NOR3 = 1
+  }
+  else if (processing_NOR3 == 1){
+    if ($1 == "a") input1 = $3
+    else if ($1 == "b") input2 = $3
+    else if ($1 == "c") input3 = $3
+    else if ($1 == "O"){
+	printf("g%s nor %s %s %s ; %s\n",$3,input1,input2,input3,$3)
+	processing_NOR3 = 0
+    }
+  }
+  else if (($1 == "INSTANCE") && ($2 == "nor4")){
+    processing_NOR4 = 1
+  }
+  else if (processing_NOR4 == 1){
+    if ($1 == "a") input1 = $3
+    else if ($1 == "b") input2 = $3
+    else if ($1 == "c") input3 = $3
+    else if ($1 == "d") input4 = $3
+    else if ($1 == "O"){
+	printf("g%s nor %s %s %s %s ; %s\n",$3,input1,input2,input3,input4,$3)
+	processing_NOR4 = 0
+    }
+  }
+  #==================================================================
+  else if (($1 == "INSTANCE") && ($2 == "dff")){
+    processing_DFF = 1
+  }
+  else if (processing_DFF == 1){
+    ## do nothing.  DFF node names handled in awk.gather.bdnet.dff.info
+    if ($1 == "Q"){
+	processing_DFF = 0
+    }
+  }
+  #==================================================================
+  else if ($0 == ""){
+     ## do not echo blank lines.
+  }
+  else if (($1 == "TECHNOLOGY") || ($1 == "VIEWTYPE") || ($1 == "EDITSTYLE") || ($1 == "ENDMODEL")){
+     ## ignore lines which begin with 
+     ##  keywords = TECHNOLOGY, VIEWTYPE, EDITSTYLE, ENDMODEL
+  }
+  else if ($1 == "INSTANCE"){
+	printf("ERROR:  gate type unknown on line %d\n",NR)
+	print $0
+  }
+  else{
+	printf("ERROR:  unexpected input on line %d\n",NR)
+	print $0
+  }
+}
+
+

@@ -1,0 +1,22 @@
+# Tom Marchok
+# October 5, 1993
+# 
+# awk.extract.num.PI.PO.from.kiss2.outfile
+# 
+# This file extracts the number of Primary Inputs and the number of
+# Primary Outputs from the *.kiss2 output file.  This informtion is
+# held in the lines of the *.kiss2 file whose syntax is:
+# 		
+# 		.i 19 
+# 		.o 20
+# 
+
+{
+  if ($1 == ".i"){
+	printf("num_PI %s\n",$2)
+  }
+  else if ($1 == ".o"){
+	printf("num_PO %s\n",$2)
+  }
+  ## else ignore line
+}

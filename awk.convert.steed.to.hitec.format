@@ -1,0 +1,143 @@
+# Tom Marchok
+# February 19, 1992
+# 
+# awk.convert.steed.to.hitec.format
+# 
+# This file converts STEED.sim circuit input file format to 
+# hitec.bench circuit input file format.
+# 
+# Gate types (STEED -> hitec):
+#	1  and  --> AND
+#	2  nand --> NAND
+#	3. or   --> OR
+#	4. nor  --> NOR
+#	5. not  --> NOT
+#	6. buf  --> BUF
+#	==> STEED does not accept either XOR or XNOR gates
+#	==> hitec _does_ accept both XOR and XNOR gates
+# 
+# Marchok 3-19-93:  the ISCAS89 circuits do not have any "BUF" gates,
+#  according to the script in /afs/ece/usr/marchok/research/testing\
+#  /iscas89/DATA/chars_format/check.for.xor.xnor.buf.gates , none of the
+#  iscas89 circuits contain either XOR, XNOR, or BUF gates.
+#  Note that STEED does accept "buf" gates, but none of the iscas89 ckts
+#  contain them.  (Thus the "buf" code in this script is never exercised."
+#
+# Example conversion (STEED --> hitec):
+# -------------------------------------
+#  inputs, outputs...
+#	i G0 G1 G2		-->	INPUT(G0)
+#				-->	INPUT(G1)
+#				-->	INPUT(G2)
+#	o G10 G11 G12		-->	OUTPUT(G10)
+#				-->	OUTPUT(G11)
+#				-->	OUTPUT(G12)
+#
+#  STEED initialization sequence...
+# 	I			-->	..disregard...
+#	00000000
+#
+#  DFF specification...
+#	p G5 G6 G7		-->	G5 = DFF(G10)
+#	n G10 G11 G12		-->	G6 = DFF(G11)
+#				-->	G7 = DFF(G12)
+#
+#  gates...
+# 	gG14 not G10 ; G14	-->	G14 = NOT(G10)
+#	gG15 or G12 G8 ; G15	-->	G15 = OR(G12, G8)
+#	gG8 and G14 G6 ; G8	-->	G8  = AND(G14, G6)
+#
+#  comments...
+#	# this is a comment	-->	...disregard...
+#
+#  other...
+#	- the last line of a hitec.benchfile is
+#		"END"
+#
+
+{
+	if (($0 ~ /^#/) || (NF == 0)){
+	  # do nothing - disregard comments & blank lines,
+	}
+	else if ($1 == "name"){
+	  # do nothing - disregard name line
+	}
+	else if ($1 == "I"){
+	  # do nothing - disregard I initialization line and the next line
+	  disregard_next_line = 0
+	}
+	else if ((disregard_next_line == 1) && (NF > 0)){
+	  disregard_next_line = 0
+	}
+	###################### input/output #######################
+	else if ($1 == "i"){
+	    for (j=2; j <= NF; j++){
+		printf("INPUT(%s)\n",$j)
+	    }
+	}
+	else if ($1 == "o"){
+	    for (j=2; j <= NF; j++){
+		printf("OUTPUT(%s)\n",$j)
+	    }
+	}
+	###################### DFF Descriptions #######################
+	else if ($1 == "p"){
+	    for (j=2; j <= NF; j++){
+		num_p++
+		p[num_p] = $j
+	    }
+	}
+	else if ($1 == "n"){
+	    for (j=2; j <= NF; j++){
+		num_n++
+		n[num_n] = $j
+	    }
+	    if (num_n == num_p){
+		# then have read in all "n" descriptions, can proceed
+		# to print out "DFF" descriptions
+		for (k=1; k <= num_n; k++){
+		   printf("%s = DFF(%s)\n",p[k],n[k])
+		}
+	    }
+	}
+	###################### Gate Descriptions #######################
+	else if ($2 == "not"){
+	    printf("%s = NOT(%s)\n",$5,$3)
+	}
+	else if ($2 == "buff"){
+	    printf("%s = BUFF(%s)\n",$5,$3)
+	}
+	else if ($2 == "and"){			
+	    printf("%s = AND(",$NF)
+	    for (i=3; i <= NF-3; i++){
+	       printf("%s, ",$i)
+	    }
+	    printf("%s)\n",$(NF-2))
+	}
+	else if ($2 == "nand"){
+	    printf("%s = NAND(",$NF)
+	    for (i=3; i <= NF-3; i++){
+	       printf("%s, ",$i)
+	    }
+	    printf("%s)\n",$(NF-2))
+	}
+	else if ($2 == "or"){
+	    printf("%s = OR(",$NF)
+	    for (i=3; i <= NF-3; i++){
+	       printf("%s, ",$i)
+	    }
+	    printf("%s)\n",$(NF-2))
+	}
+	else if ($2 == "nor"){
+	    printf("%s = NOR(",$NF)
+	    for (i=3; i <= NF-3; i++){
+	       printf("%s, ",$i)
+	    }
+	    printf("%s)\n",$(NF-2))
+	}
+	else{
+	}
+}
+END{
+       printf("END\n")
+}

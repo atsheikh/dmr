@@ -1,0 +1,41 @@
+# The genlib library "tom.mcnc.genlib".
+GATE        inv1x     928.00   O=! a;
+    PIN         a        INV      0    999   0.42   4.71   0.42   3.60
+GATE        inv2x     928.00   O=! a;
+    PIN         a        INV      0    999   0.30   1.98   0.29   1.82
+GATE        inv4x    1392.00   O=! a;
+    PIN         a        INV      0    999   0.23   1.08   0.27   0.85
+GATE        nand2    1392.00   O=! (a * b);
+    PIN         a        INV      0    999   0.64   4.09   0.40   2.57
+    PIN         b        INV      0    999   0.46   4.10   0.37   2.57
+GATE        nand3    1856.00   O=! (a * b * c);
+    PIN         a        INV      0    999   0.89   3.60   0.51   2.49
+    PIN         b        INV      0    999   0.71   4.11   0.42   2.50
+    PIN         c        INV      0    999   0.56   4.39   0.35   2.49
+GATE        nand4    2320.00   O=! (a * b * c * d);
+    PIN         a        INV      0    999   1.27   3.62   0.67   2.39
+    PIN         b        INV      0    999   1.09   3.61   0.61   2.39
+    PIN         c        INV      0    999   0.82   3.62   0.55   2.40
+    PIN         d        INV      0    999   0.58   3.62   0.38   2.39
+GATE         nor2    1392.00   O=! (a + b);
+    PIN         a        INV      0    999   0.33   3.64   0.45   3.64
+    PIN         b        INV      0    999   0.50   3.64   0.70   3.66
+GATE         nor3    1856.00   O=! (a + b + c);
+    PIN         a        INV      0    999   0.84   5.04   1.30   3.45
+    PIN         b        INV      0    999   0.78   5.03   1.14   3.43
+    PIN         c        INV      0    999   0.52   5.03   0.84   3.44
+GATE         nor4    2320.00   O=! (a + b + c + d);
+    PIN         a        INV      0    999   0.41   5.91   1.16   3.20
+    PIN         b        INV      0    999   0.85   5.91   1.53   3.18
+    PIN         c        INV      0    999   1.11   5.92   1.75   3.19
+    PIN         d        INV      0    999   1.27   5.91   1.94   3.20	
+  
+GATE         zero       0.00   O=CONST0;
+GATE          one       0.00   O=CONST1;
+
+LATCH "d-latch" 80     Q=D;
+PIN D NONINV 1 999 1 .2 1 .2
+SEQ Q ANY RISING_EDGE
+CONTROL CLK 1 999 1 .2 1 .2
+CONSTRAINT D 0.2 0.2
+

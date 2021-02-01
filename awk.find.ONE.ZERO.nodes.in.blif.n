@@ -1,0 +1,34 @@
+# Tom Marchok
+# November 22, 1993
+# 
+# awk.find.ONE.ZERO.nodes.in.blif.n
+# 
+# This file finds hardwired ONE/ZERO nodes in sis -n format (*.n.blif).
+# (sis -n format is produced by using the -n switch with the write_blif 
+#  command:
+# 		write_blif -n circuit.n.blif
+# 
+# The -n switch is used because it uses net-list format of blif when a
+# node has a gate implementation in the library.
+# 
+# The syntax for hardwired ONE/ZERO nodes in sis -n format is:
+# 	.gate zero 0=[21]
+# 	.gate one 0=[22]
+# 
+# STRATEGY:
+#    produce the following output:
+# 	.gate zero 0=[21]	--> ZERO [21]
+# 	.gate one 0=[22]	--> ONE [22]
+# 
+
+{
+  if ($1 == ".gate"){
+    if ($2 == "zero"){
+	printf("ZERO %s\n",$4)
+    }
+    else if ($2 == "one"){
+	printf("ONE %s\n",$4)
+    }
+  }
+}
+

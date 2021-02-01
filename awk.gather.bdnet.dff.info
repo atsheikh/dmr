@@ -1,0 +1,71 @@
+# Tom Marchok
+# October 5, 1993
+# 
+# awk.gather.bdnet.dff.info
+# 
+# This file is the front end script to the script sequence which converts
+# sis *.bdnet format to steed *.sim format.
+# 
+# Note that the *.bdnet format file on which this script operates must have
+# the following information appended to the beginning of it:
+# 		num_PI 1
+# 		num_PO 2
+# This information tells the number of Primary Inputs/Primary Outputs,
+# and is used in printing out the STEED "i","o","p", and "n" lines.
+# (This is because jedi includes all PI and DFF_p in the "INPUT" listing
+#  and all PO and DFF_n in the "OUTPUT" listing.)
+# 
+
+{
+  if ($1 == "num_PI"){
+     num_PI = $2
+  }
+  else if ($1 == "num_PO"){
+     num_PO = $2
+  }
+  else if ($1 == "INPUT"){
+     gathering_INPUT = 1
+  }
+  else if (gathering_INPUT == 1){
+     if ($0 == ""){
+	gathering_INPUT = 0
+     }
+     else{
+       ## save PI/DFF names in INPUT[]
+       num_input++
+       INPUT[num_input] = $3
+     }
+  }
+  else if (($1 == "INSTANCE") && ($2 == "dff")){
+     gathering_DFF = 1
+     num_DFF_n++
+  }
+  else if (gathering_DFF == 1){
+    if ($0 == ""){
+	gathering_DFF = 0
+    }
+    else if ($1 == "D"){
+      DFF_n[num_DFF_n] = $3
+    }
+  }   
+}
+END{
+  if ((num_input - num_PI) != num_DFF_n){
+    printf("ERROR in awk.gather.bdnet.dff.info.\n")
+    printf("ERROR: number DFF_n=%d",num_DFF_n)
+    printf("does not equal number DFF_p=%d\n",num_input - num_PI)
+  }
+
+  printf("p")
+  for (i=num_PI+1; i <= num_input; i++){
+    printf(" %s",INPUT[i])
+  }
+  printf("\n")
+
+  printf("n")
+  for (i=1; i <= num_DFF_n; i++){
+    printf(" %s",DFF_n[i])
+  }
+  printf("\n")
+}
+
